@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from app.db.database import get_db
 from app.profile.repository import ProfileRepository
 from app.profile.models import CanonicalProfile
+from app.profile.diff import ProfileDiffService
 
 
 router = APIRouter()
@@ -106,6 +107,7 @@ async def extract_resume(
             file_path.unlink()
 
 
+# Endpoint to get the latest data for resume
 @router.get("/profiles/latest")
 def get_latest_profile(
     db: Session = Depends(get_db),
@@ -124,4 +126,47 @@ def get_latest_profile(
         "version": version.version,
         "created_at": version.created_at,
         "profile": CanonicalProfile.model_validate_json(version.profile_json),
+    }
+
+
+@router.get("/profiles/diff")
+def compare_profiles(
+    old_version: int,
+    new_version: int,
+    db: Session = Depends(get_db),
+):
+    repository = ProfileRepository()
+
+    old_record = repository.get_by_version(
+        db,
+        old_version,
+    )
+
+    new_record = repository.get_by_version(
+        db,
+        new_version,
+    )
+
+    if old_record is None or new_record is None:
+        raise HTTPException(
+            status_code=404,
+            detail="One or both profile versions were not found.",
+        )
+
+    old_profile = CanonicalProfile.model_validate_json(old_record.profile_json)
+
+    new_profile = CanonicalProfile.model_validate_json(new_record.profile_json)
+
+    diff_service = ProfileDiffService()
+
+    diff = diff_service.compare(
+        old=old_profile,
+        new=new_profile,
+    )
+
+    return {
+        "old_version": old_version,
+        "new_version": new_version,
+        "total_changes": diff.total_changes,
+        "changes": diff.changes,
     }

@@ -1,5 +1,5 @@
 from datetime import date
-
+from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
@@ -40,3 +40,22 @@ class CanonicalProfile(BaseModel):
     experience: list[Experience] = Field(default_factory=list)
     projects: list[Project] = Field(default_factory=list)
     education: list[Education] = Field(default_factory=list)
+
+
+class ProfileChange(BaseModel):
+    change_type: Literal["added", "removed", "updated"]
+
+    section: str
+
+    identifier: str
+
+    old_value: Any | None = None
+    new_value: Any | None = None
+
+
+class ProfileDiff(BaseModel):
+    changes: list[ProfileChange] = Field(default_factory=list)
+
+    @property
+    def total_changes(self) -> int:
+        return len(self.changes)

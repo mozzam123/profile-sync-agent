@@ -48,3 +48,13 @@ class ProfileRepository:
             .offset(1)
             .limit(1)
         )
+
+    def get_by_version(
+        self,
+        db: Session,
+        version: int,
+    ) -> ProfileVersion | None:
+
+        return db.scalar(
+            select(ProfileVersion).where(ProfileVersion.version == version)
+        )
